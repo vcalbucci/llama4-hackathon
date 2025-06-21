@@ -16,10 +16,11 @@ CORS(app)  # Enable CORS for React frontend
 
 LLAMA_API_URL = os.getenv("LLAMA_API_URL", "https://api.llama.com/v1/chat/completions")
 LLAMA_API_KEY = os.getenv("LLAMA_API_KEY")
+PORT = os.getenv("PORT", 5000)
 
 def process_image_with_llama(base64_image, language='English', context='describe'):
     """
-    Process image using the same logic as test_pipeline.py
+    Process image using the Llama API
     """
     try:
         # Create prompt based on context
@@ -64,17 +65,10 @@ def process_image_with_llama(base64_image, language='English', context='describe
         
         result = response.json()
         
-        # Extract the message content
-        if 'choices' in result and len(result['choices']) > 0:
-            message_content = result['choices'][0]['message']['content']
-            return {
-                "success": True,
-                "prompt": prompt,
-                "result": message_content,
-                "full_response": result
-            }
-        else:
-            return {"error": "No response content found"}
+        return {
+            "success": True,
+            "result": result  # Pass through the raw Llama response
+        }
             
     except requests.exceptions.RequestException as e:
         return {"error": f"API request failed: {str(e)}"}
@@ -115,4 +109,4 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000) 
+    app.run(host='0.0.0.0', debug=True, port=PORT) 

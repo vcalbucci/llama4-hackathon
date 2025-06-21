@@ -5,6 +5,13 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
+
+// Hide loading screen
+const loadingScreen = document.querySelector('.loading-screen');
+if (loadingScreen) {
+  loadingScreen.style.display = 'none';
+}
+
 root.render(
   <React.StrictMode>
     <App />

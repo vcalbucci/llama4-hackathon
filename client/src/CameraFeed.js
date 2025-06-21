@@ -133,72 +133,21 @@ const CameraFeed = () => {
       const data = await response.json();
 
       if (data.success) {
-        setResult(data);
+        setProcessedResult(data.result);
+        setProcessingError(null);
         showStatus('Image processed successfully!', 'success');
       } else {
+        setProcessingError(data.error || 'Failed to process image');
+        setProcessedResult(null);
         showError(data.error || 'Failed to process image');
       }
     } catch (error) {
       console.error('Error processing image:', error);
+      setProcessingError('Failed to connect to processing server. Make sure the server is running.');
+      setProcessedResult(null);
       showError('Failed to connect to processing server. Make sure the server is running.');
     } finally {
       setIsProcessing(false);
-    }
-  };
-
-  const handleImageSubmit = async () => {
-    if (!capturedImage) {
-      alert('Please capture an image first');
-      return;
-    }
-
-    try {
-      // First save the image
-      const formData = new FormData();
-      formData.append('image', capturedImage);
-      
-      const saveResponse = await fetch('/api/save-image', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!saveResponse.ok) {
-        throw new Error('Failed to save image');
-      }
-      
-      const { filename } = await saveResponse.json();
-
-      // Then process the image with Llama
-      const processResponse = await fetch('http://localhost:5000/api/process-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          image_path: filename,
-          language: language,
-          context: context
-        })
-      });
-
-      if (!processResponse.ok) {
-        throw new Error('Failed to process image');
-      }
-
-      const result = await processResponse.json();
-      
-      if (result.error) {
-        setProcessingError(result.error);
-        setProcessedResult(null);
-      } else {
-        setProcessingError(null);
-        setProcessedResult(result.response);
-      }
-
-    } catch (error) {
-      console.error('Error processing image:', error);
-      setProcessingError(error.message);
-      setProcessedResult(null);
     }
   };
 
@@ -217,128 +166,81 @@ const CameraFeed = () => {
   }, [currentStream]);
 
   return (
-    <div className="camera-container">
-      <h1>Camera Feed with AI Analysis</h1>
-      
-      <div className="camera-settings">
-        <div className="setting-group">
-          <label htmlFor="language">Language:</label>
-          <select 
-            id="language" 
-            value={language} 
-            onChange={(e) => setLanguage(e.target.value)}
-            className="setting-select"
-          >
-            <option value="English">English</option>
-            <option value="Spanish">Spanish</option>
-            <option value="French">French</option>
-            <option value="German">German</option>
-            <option value="Italian">Italian</option>
-            <option value="Portuguese">Portuguese</option>
-          </select>
-        </div>
-        
-        <div className="setting-group">
-          <label htmlFor="context">Context:</label>
-          <select 
-            id="context" 
-            value={context} 
-            onChange={(e) => setContext(e.target.value)}
-            className="setting-select"
-          >
-            <option value="describe">Describe</option>
-            <option value="translate">Translate</option>
-            <option value="signlanguage">Sign Language</option>
-          </select>
-        </div>
+    <div className="camera-feed">
+      <div className="controls">
+        <button onClick={() => !isStarted ? startCamera() : stopCamera()}>
+          {!isStarted ? 'Start Camera' : 'Stop Camera'}
+        </button>
+        {isStarted && (
+          <>
+            <button onClick={switchCamera}>Switch Camera</button>
+            <button onClick={captureImage} disabled={isProcessing}>
+              {isProcessing ? 'Processing...' : 'Capture Image'}
+            </button>
+          </>
+        )}
       </div>
 
-      <video 
-        ref={videoRef}
-        id="video" 
-        autoPlay 
-        playsInline 
-        muted
-        className="camera-video"
-      />
-      
-      <canvas 
-        ref={canvasRef}
-        style={{ display: 'none' }}
-      />
-      
-      <div className="camera-controls">
-        <button 
-          onClick={() => startCamera()}
-          disabled={isStarted}
-          className="camera-btn"
-        >
-          Start Camera
-        </button>
-        <button 
-          onClick={stopCamera}
-          disabled={!isStarted}
-          className="camera-btn"
-        >
-          Stop Camera
-        </button>
-        <button 
-          onClick={switchCamera}
-          disabled={!isStarted}
-          className="camera-btn"
-        >
-          Switch Camera
-        </button>
-        <button 
-          onClick={captureImage}
-          disabled={!isStarted || isProcessing}
-          className="camera-btn capture-btn"
-        >
-          {isProcessing ? 'Processing...' : 'Capture & Analyze'}
-        </button>
+      <div className="options">
+        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+          <option value="English">English</option>
+          <option value="Spanish">Spanish</option>
+          <option value="French">French</option>
+          <option value="German">German</option>
+          <option value="Italian">Italian</option>
+          <option value="Portuguese">Portuguese</option>
+          <option value="Chinese">Chinese</option>
+          <option value="Japanese">Japanese</option>
+          <option value="Korean">Korean</option>
+        </select>
+
+        <select value={context} onChange={(e) => setContext(e.target.value)}>
+          <option value="describe">Describe</option>
+          <option value="translate">Translate</option>
+        </select>
       </div>
-      
-      {status.message && (
-        <div className={`camera-status ${status.type}`}>
-          {status.message}
-        </div>
-      )}
+
+      <div className="status-message" data-type={status.type}>
+        {status.message}
+      </div>
+
+      <div className="video-container">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          style={{ transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+        />
+        <canvas ref={canvasRef} style={{ display: 'none' }} />
+      </div>
 
       {capturedImage && (
-        <div className="captured-section">
-          <h3>Captured Image</h3>
-          <img 
-            src={capturedImage} 
-            alt="Captured" 
-            className="captured-image"
-          />
-        </div>
-      )}
-
-      {result && (
-        <div className="result-section">
-          <h3>AI Analysis Result</h3>
-          <div className="result-content">
-            <div className="result-prompt">
-              <strong>Prompt used:</strong> {result.prompt}
-            </div>
-            <div className="result-text">
-              <strong>Result:</strong> {result.result}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {processingError && (
-        <div className="error-message">
-          Error: {processingError}
-        </div>
-      )}
-      
-      {processedResult && (
         <div className="result-container">
-          <h3>Result:</h3>
-          <p>{processedResult}</p>
+          <h3>Captured Image</h3>
+          <img
+            src={capturedImage}
+            alt="Captured"
+            style={{ transform: currentFacingMode === 'user' ? 'scaleX(-1)' : 'none' }}
+          />
+          
+          {isProcessing && (
+            <div className="processing-indicator">
+              Processing image...
+            </div>
+          )}
+          
+          {processingError && (
+            <div className="error-message">
+              {processingError}
+            </div>
+          )}
+          
+          {processedResult && (
+            <div className="llama-response">
+              <h3>Llama Response:</h3>
+              <p>{processedResult}</p>
+            </div>
+          )}
         </div>
       )}
     </div>

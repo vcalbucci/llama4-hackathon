@@ -83,8 +83,62 @@ This will start both the React frontend and Flask backend servers simultaneously
 
 ## Accessing the Application
 
-- Frontend: Open [http://localhost:3000](http://localhost:3000) in your browser
-- Backend API: [http://localhost:5000](http://localhost:5000)
+- Frontend: Open [http://localhost:5050](http://localhost:5050) in your browser
+- Backend: Runs on http://localhost:5050
+
+### Prerequisites
+
+- Node.js and npm
+- Python 3.x and pip
+- Llama API Key
+
+### Setup
+
+1.  **Clone the repository:**
+
+    ```bash
+    git clone https://github.com/your-username/your-repo-name.git
+    cd your-repo-name
+    ```
+
+2.  **Set up the backend:**
+
+    ```bash
+    cd server
+    pip install -r requirements.txt
+    cp .env.example .env 
+    # Add your LLAMA_API_KEY to the .env file
+    ```
+
+3.  **Set up the frontend:**
+
+    ```bash
+    cd ../client
+    npm install
+    ```
+
+### Running the Application
+
+1.  **Start the backend server:**
+
+    ```bash
+    cd ../server
+    python app.py
+    ```
+
+2.  **Start the frontend development server:**
+
+    ```bash
+    cd ../client
+    npm start
+    ```
+
+### Troubleshooting
+
+- If you encounter any issues, please check the following:
+  - Check if the ports (5050) are available
+  - Ensure that you have the correct Llama API key in your `.env` file
+  - Check the browser console and terminal for any error messages
 
 ## Using the Application
 

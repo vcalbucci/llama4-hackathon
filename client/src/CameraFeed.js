@@ -115,7 +115,7 @@ const CameraFeed = () => {
     showStatus('Analyzing image...', 'info');
 
     try {
-      const response = await fetch('http://localhost:5000/process-image', {
+      const response = await fetch('http://127.0.0.1:5051/process-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -584,4 +584,4 @@ const CameraFeed = () => {
   );
 };
 
-export default CameraFeed; 
+export default CameraFeed;

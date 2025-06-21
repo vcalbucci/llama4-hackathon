@@ -16,7 +16,7 @@ CORS(app)  # Enable CORS for React frontend
 
 LLAMA_API_URL = os.getenv("LLAMA_API_URL", "https://api.llama.com/v1/chat/completions")
 LLAMA_API_KEY = os.getenv("LLAMA_API_KEY")
-PORT = os.getenv("PORT", 5000)
+PORT = os.getenv("PORT", 5050)
 
 def process_image_with_llama(base64_image, language='English', context='describe'):
     """
@@ -109,4 +109,4 @@ def health_check():
     return jsonify({"status": "healthy"})
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=PORT) 
+    app.run(host='0.0.0.0', debug=True, port=PORT)

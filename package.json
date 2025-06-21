@@ -3,15 +3,17 @@
   "version": "1.0.0",
   "description": "Camera feed application with AI analysis",
   "scripts": {
-    "dev": "cd client && npm start",
-    "server": "cd server && python app.py",
-    "dev:full": "concurrently \"npm run server\" \"npm run dev\"",
+    "client": "cd client && npm start",
+    "dev": "npm run client",
+    "server": "cross-env PORT=5051 python3 server/app.py",
+    "dev:full": "cross-env REACT_APP_API_URL=http://127.0.0.1:5051 concurrently --names \"server,client\" --prefix-colors \"cyan,magenta\" \"npm run server\" \"npm run client\"",
     "build": "cd client && npm run build",
     "test": "cd client && npm test",
     "install:all": "cd client && npm install && cd ../server && pip install -r requirements.txt"
   },
   "private": true,
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3"
   }
-} 
+}

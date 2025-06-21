@@ -128,7 +128,7 @@ const CameraFeed = () => {
     showStatus('Analyzing image...', 'info');
 
     try {
-      const port = process.env.REACT_APP_PORT || '5000';
+      const port = process.env.REACT_APP_PORT || '5050';
       const response = await fetch(`http://localhost:${port}/process-image`, {
         method: 'POST',
         headers: {
@@ -446,6 +446,24 @@ const CameraFeed = () => {
     }
   };
 
+  const closeResultContainer = () => {
+    // Add smooth closing animation
+    const container = resultContainerRef.current;
+    if (container) {
+      container.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      container.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        setIsResultVisible(false);
+        container.style.transform = '';
+        container.style.transition = '';
+      }, 300);
+    } else {
+      setIsResultVisible(false);
+    }
+  };
+
+
+
   useEffect(() => {
     // Check if camera is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -530,92 +548,100 @@ const CameraFeed = () => {
       </div>
 
       {(processedResult || processingError || isProcessing || captureHistory.length > 0) && isResultVisible && (
-        <div 
-          ref={resultContainerRef}
-          className={`result-container ${!isResultVisible ? 'hidden' : ''}`}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
-        >
-          {/* Current/Latest Capture */}
-          {(capturedImage || isProcessing || processedResult || processingError) && (
-            <div className="current-capture">
-              {capturedImage && (
-                <img src={capturedImage} alt="Latest Capture" />
-              )}
-              
-              {isProcessing && (
-                <div className="processing-indicator">
-                  Analyzing your image...
-                </div>
-              )}
-              
-              {processingError && (
-                <div className="error-message">
-                  ❌ {processingError}
-                </div>
-              )}
-              
-              {processedResult && (
-                <div className="llama-response">
-                  <h3>✨ Analysis Result</h3>
-                  <p>{processedResult}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* History Section */}
-          {captureHistory.length > 0 && (
-            <div className="history-section">
-              <div className="history-header">
-                <h3>⟲ Previous Captures</h3>
-                <button onClick={clearHistory} className="clear-history-btn">
-                  🗑️ Clear All
-                </button>
-              </div>
-              
-              <div className="history-list">
-                {captureHistory.map((item) => (
-                  <div key={item.id} className="history-item">
-                    <div className="history-item-header">
-                      <span className="history-timestamp">{item.timestamp}</span>
-                      <button 
-                        onClick={() => deleteHistoryItem(item.id)}
-                        className="delete-item-btn"
-                        title="Delete this capture"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    
-                    <img src={item.image} alt={`Capture from ${item.timestamp}`} />
-                    
-                    <div className="history-meta">
-                      <span className="history-language">🌐 {item.language}</span>
-                      <span className="history-context">
-                        {item.context === 'describe' ? '👁️ Describe' : '🔤 Translate'}
-                      </span>
-                    </div>
-                    
-                    {item.result && (
-                      <div className="history-result">
-                        <p>{item.result}</p>
-                      </div>
-                    )}
-                    
-                    {item.error && (
-                      <div className="history-error">
-                        ❌ {item.error}
-                      </div>
-                    )}
+        <>
+          {/* Backdrop overlay */}
+          <div 
+            className="backdrop-overlay"
+            onClick={closeResultContainer}
+          />
+          
+          <div 
+            ref={resultContainerRef}
+            className={`result-container ${!isResultVisible ? 'hidden' : ''}`}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onMouseDown={handleMouseDown}
+          >
+            {/* Current/Latest Capture */}
+            {(capturedImage || isProcessing || processedResult || processingError) && (
+              <div className="current-capture">
+                {capturedImage && (
+                  <img src={capturedImage} alt="Latest Capture" />
+                )}
+                
+                {isProcessing && (
+                  <div className="processing-indicator">
+                    Analyzing your image...
                   </div>
-                ))}
+                )}
+                
+                {processingError && (
+                  <div className="error-message">
+                    ❌ {processingError}
+                  </div>
+                )}
+                
+                {processedResult && (
+                  <div className="llama-response">
+                    <h3>✨ Analysis Result</h3>
+                    <p>{processedResult}</p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
+            )}
+
+            {/* History Section */}
+            {captureHistory.length > 0 && (
+              <div className="history-section">
+                <div className="history-header">
+                  <h3>⟲ Previous Captures</h3>
+                  <button onClick={clearHistory} className="clear-history-btn">
+                    🗑️ Clear All
+                  </button>
+                </div>
+                
+                <div className="history-list">
+                  {captureHistory.map((item) => (
+                    <div key={item.id} className="history-item">
+                      <div className="history-item-header">
+                        <span className="history-timestamp">{item.timestamp}</span>
+                        <button 
+                          onClick={() => deleteHistoryItem(item.id)}
+                          className="delete-item-btn"
+                          title="Delete this capture"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      
+                      <img src={item.image} alt={`Capture from ${item.timestamp}`} />
+                      
+                      <div className="history-meta">
+                        <span className="history-language">🌐 {item.language}</span>
+                        <span className="history-context">
+                          {item.context === 'describe' ? '👁️ Describe' : '🔤 Translate'}
+                        </span>
+                      </div>
+                      
+                      {item.result && (
+                        <div className="history-result">
+                          <p>{item.result}</p>
+                        </div>
+                      )}
+                      
+                      {item.error && (
+                        <div className="history-error">
+                          ❌ {item.error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

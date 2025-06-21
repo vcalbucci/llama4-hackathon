@@ -128,7 +128,8 @@ const CameraFeed = () => {
     showStatus('Analyzing image...', 'info');
 
     try {
-      const response = await fetch('http://localhost:5000/process-image', {
+      const port = process.env.REACT_APP_PORT || '5000';
+      const response = await fetch(`http://localhost:${port}/process-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

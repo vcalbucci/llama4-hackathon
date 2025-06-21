@@ -16,6 +16,7 @@ const CameraFeed = () => {
   const [processedResult, setProcessedResult] = useState(null);
   const [isResultVisible, setIsResultVisible] = useState(false);
   const [captureHistory, setCaptureHistory] = useState([]);
+  const [currentCaptureData, setCurrentCaptureData] = useState(null);
   const resultContainerRef = useRef(null);
 
   const showStatus = (message, type = 'info') => {
@@ -55,9 +56,16 @@ const CameraFeed = () => {
       
       showStatus('Camera ready!', 'success');
       
-      // Hide status after 2 seconds
+      // Hide status after 2 seconds with fade-out animation
       setTimeout(() => {
-        setStatus({ message: '', type: 'info' });
+        const statusElement = document.querySelector('.status-message');
+        if (statusElement) {
+          statusElement.classList.add('fade-out');
+          // Clear the status after animation completes
+          setTimeout(() => {
+            setStatus({ message: '', type: 'info' });
+          }, 300);
+        }
       }, 2000);
       
     } catch (error) {
@@ -87,6 +95,11 @@ const CameraFeed = () => {
 
   const captureImage = () => {
     if (!videoRef.current || !canvasRef.current) return;
+
+    // Add previous capture to history before taking new one
+    if (currentCaptureData) {
+      setCaptureHistory(prev => [currentCaptureData, ...prev]);
+    }
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -148,26 +161,36 @@ const CameraFeed = () => {
         setProcessedResult(finalResult);
         setProcessingError(null);
         
-        // Add to history
-        const historyItem = {
+        // Store as current capture data (don't add to history yet)
+        setCurrentCaptureData({
           id: Date.now(),
           image: imageDataUrl,
           result: finalResult,
           language: language,
           context: context,
           timestamp: new Date().toLocaleString()
-        };
-        
-        setCaptureHistory(prev => [historyItem, ...prev]);
+        });
         
         showStatus('Analysis complete!', 'success');
+        
+        // Auto-hide success status after 3 seconds with fade-out animation
+        setTimeout(() => {
+          const statusElement = document.querySelector('.status-message');
+          if (statusElement) {
+            statusElement.classList.add('fade-out');
+            // Clear the status after animation completes
+            setTimeout(() => {
+              setStatus({ message: '', type: 'info' });
+            }, 300);
+          }
+        }, 3000);
       } else {
         const errorMsg = data.error || 'Failed to process image';
         setProcessingError(errorMsg);
         setProcessedResult(null);
         
-        // Add failed capture to history
-        const historyItem = {
+        // Store failed capture as current data
+        setCurrentCaptureData({
           id: Date.now(),
           image: imageDataUrl,
           result: null,
@@ -175,9 +198,7 @@ const CameraFeed = () => {
           language: language,
           context: context,
           timestamp: new Date().toLocaleString()
-        };
-        
-        setCaptureHistory(prev => [historyItem, ...prev]);
+        });
         
         showError(errorMsg);
       }
@@ -187,8 +208,8 @@ const CameraFeed = () => {
       setProcessingError(errorMsg);
       setProcessedResult(null);
       
-      // Add failed capture to history
-      const historyItem = {
+      // Store failed capture as current data
+      setCurrentCaptureData({
         id: Date.now(),
         image: imageDataUrl,
         result: null,
@@ -196,9 +217,7 @@ const CameraFeed = () => {
         language: language,
         context: context,
         timestamp: new Date().toLocaleString()
-      };
-      
-      setCaptureHistory(prev => [historyItem, ...prev]);
+      });
       
       showError(errorMsg);
     } finally {
@@ -400,6 +419,7 @@ const CameraFeed = () => {
 
   const clearHistory = () => {
     setCaptureHistory([]);
+    setCurrentCaptureData(null);
     // Add smooth closing animation
     const container = resultContainerRef.current;
     if (container) {
@@ -417,6 +437,12 @@ const CameraFeed = () => {
 
   const deleteHistoryItem = (id) => {
     setCaptureHistory(prev => prev.filter(item => item.id !== id));
+  };
+
+  const openHistory = () => {
+    if (currentCaptureData || captureHistory.length > 0) {
+      setIsResultVisible(true);
+    }
   };
 
   useEffect(() => {
@@ -438,7 +464,7 @@ const CameraFeed = () => {
   }, []); // Empty dependency array to run only on mount
 
   useEffect(() => {
-    // Show result container when there's a result or history
+    // Show result container when there's a current result or history
     if (processedResult || processingError || captureHistory.length > 0) {
       setIsResultVisible(true);
     }
@@ -463,6 +489,16 @@ const CameraFeed = () => {
           <option value="describe">👁️ Describe</option>
           <option value="translate">🔤 Translate</option>
         </select>
+
+        {(currentCaptureData || captureHistory.length > 0) && (
+          <button 
+            onClick={openHistory}
+            className="history-btn"
+            title="View History"
+          >
+            History ⟲ {captureHistory.length}
+          </button>
+        )}
       </div>
 
       {status.message && (
@@ -533,7 +569,7 @@ const CameraFeed = () => {
           {captureHistory.length > 0 && (
             <div className="history-section">
               <div className="history-header">
-                <h3>📸 Previous Captures</h3>
+                <h3>⟲ Previous Captures</h3>
                 <button onClick={clearHistory} className="clear-history-btn">
                   🗑️ Clear All
                 </button>

@@ -17,6 +17,7 @@ const CameraFeed = () => {
   const [isResultVisible, setIsResultVisible] = useState(false);
   const [captureHistory, setCaptureHistory] = useState([]);
   const [currentCaptureData, setCurrentCaptureData] = useState(null);
+  const [lightboxData, setLightboxData] = useState(null);
   const resultContainerRef = useRef(null);
 
   const showStatus = (message, type = 'info') => {
@@ -39,8 +40,8 @@ const CameraFeed = () => {
       const constraints = {
         video: {
           facingMode: facingMode,
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 }
+          width: { ideal: 430 },
+          height: { ideal: 932 }
         },
         audio: false
       };
@@ -122,14 +123,15 @@ const CameraFeed = () => {
 
   const processImage = async (imageDataUrl) => {
     setIsProcessing(true);
+    setIsResultVisible(true);
     setResult(null);
     setProcessedResult(null);
     setProcessingError(null);
     showStatus('Analyzing image...', 'info');
 
     try {
-      const port = process.env.REACT_APP_PORT || '5050';
-      const response = await fetch(`http://localhost:${port}/process-image`, {
+      const apiUrl = process.env.REACT_APP_API_URL || `http://localhost:${process.env.REACT_APP_PORT || '5051'}`;
+      const response = await fetch(`${apiUrl}/process-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -462,8 +464,6 @@ const CameraFeed = () => {
     }
   };
 
-
-
   useEffect(() => {
     // Check if camera is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -515,7 +515,7 @@ const CameraFeed = () => {
             className="history-btn"
             title="View History"
           >
-            History ⟲ {captureHistory.length}
+            History ⟲ {(currentCaptureData ? 1 : 0) + captureHistory.length}
           </button>
         )}
       </div>
@@ -567,7 +567,11 @@ const CameraFeed = () => {
             {(capturedImage || isProcessing || processedResult || processingError) && (
               <div className="current-capture">
                 {capturedImage && (
-                  <img src={capturedImage} alt="Latest Capture" />
+                  <img
+                    src={capturedImage}
+                    alt="Latest Capture"
+                    onClick={() => setLightboxData(currentCaptureData)}
+                  />
                 )}
                 
                 {isProcessing && (
@@ -615,7 +619,11 @@ const CameraFeed = () => {
                         </button>
                       </div>
                       
-                      <img src={item.image} alt={`Capture from ${item.timestamp}`} />
+                      <img
+                        src={item.image}
+                        alt={`Capture from ${item.timestamp}`}
+                        onClick={() => setLightboxData(item)}
+                      />
                       
                       <div className="history-meta">
                         <span className="history-language">🌐 {item.language}</span>
@@ -642,6 +650,28 @@ const CameraFeed = () => {
             )}
           </div>
         </>
+      )}
+      {lightboxData && (
+        <div className="lightbox-overlay" onClick={() => setLightboxData(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <div className="lightbox-header">
+              <button onClick={() => setLightboxData(null)} className="back-button">
+                &lt; Back
+              </button>
+            </div>
+            <img src={lightboxData.image} alt="Enlarged capture" className="lightbox-image" />
+            {lightboxData.result && (
+              <div className="lightbox-details">
+                <p>{lightboxData.result}</p>
+              </div>
+            )}
+            {lightboxData.error && (
+              <div className="lightbox-details error-message">
+                ❌ {lightboxData.error}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

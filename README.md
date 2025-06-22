@@ -13,7 +13,8 @@ A real-time camera application that captures images and analyzes them using the 
 
 ## Demo
 
-[Watch a demo of the application on YouTube](https://www.youtube.com/watch?v=Ozh4j8MfIec)
+[![Watch the demo](https://img.youtube.com/vi/Ozh4j8MfIec/hqdefault.jpg)](https://www.youtube.com/watch?v=Ozh4j8MfIec)
+
 
 ## Prerequisites
 

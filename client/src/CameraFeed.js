@@ -19,6 +19,22 @@ const CameraFeed = () => {
   const [lightboxData, setLightboxData] = useState(null);
   const resultContainerRef = useRef(null);
 
+  // Get translated labels based on selected language
+  const getLabels = (lang) => {
+    const labels = {
+      'English': { text: 'Text', description: 'Description', noText: 'No text detected in image' },
+      'Spanish': { text: 'Texto', description: 'Descripción', noText: 'No se detectó texto en la imagen' },
+      'French': { text: 'Texte', description: 'Description', noText: 'Aucun texte détecté dans l\'image' },
+      'German': { text: 'Text', description: 'Beschreibung', noText: 'Kein Text im Bild erkannt' },
+      'Italian': { text: 'Testo', description: 'Descrizione', noText: 'Nessun testo rilevato nell\'immagine' },
+      'Portuguese': { text: 'Texto', description: 'Descrição', noText: 'Nenhum texto detectado na imagem' },
+      'Chinese': { text: '文本', description: '描述', noText: '图像中未检测到文本' },
+      'Japanese': { text: 'テキスト', description: '説明', noText: '画像内にテキストが検出されませんでした' },
+      'Korean': { text: '텍스트', description: '설명', noText: '이미지에서 텍스트가 감지되지 않았습니다' }
+    };
+    return labels[lang] || labels['English'];
+  };
+
   const showStatus = (message, type = 'info') => {
     setStatus({ message, type });
   };
@@ -161,18 +177,19 @@ const CameraFeed = () => {
             
             const translation = parsedData.translation || '';
             const description = parsedData.context || '';
+            const labels = getLabels(language);
             
             // Format the result with proper labels
             if (translation && translation.trim()) {
-              formattedResult += `Text: ${translation}`;
+              formattedResult += `${labels.text}: ${translation}`;
             } else {
               // Show friendly message when no text is detected
-              formattedResult += `Text: No text detected in image`;
+              formattedResult += `${labels.text}: ${labels.noText}`;
             }
             
             if (description && description.trim()) {
               if (formattedResult) formattedResult += '\n\n';
-              formattedResult += `Description: ${description}`;
+              formattedResult += `${labels.description}: ${description}`;
             }
           } catch (parseError) {
             formattedResult = textContent; // Fallback to raw text
@@ -181,16 +198,17 @@ const CameraFeed = () => {
           // Fallback for direct object structure
           const translation = responseData.translation || '';
           const description = responseData.context || '';
+          const labels = getLabels(language);
           
           if (translation && translation.trim()) {
-            formattedResult += `Text: ${translation}`;
+            formattedResult += `${labels.text}: ${translation}`;
           } else {
-            formattedResult += `Text: No text detected in image`;
+            formattedResult += `${labels.text}: ${labels.noText}`;
           }
           
           if (description && description.trim()) {
             if (formattedResult) formattedResult += '\n\n';
-            formattedResult += `Description: ${description}`;
+            formattedResult += `${labels.description}: ${description}`;
           }
         } else if (typeof responseData === 'string') {
           formattedResult = responseData;
@@ -544,7 +562,7 @@ const CameraFeed = () => {
     <div className="camera-feed">
       <div className="options">
         <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-          <option value="English">🌐 English</option>
+          <option value="English">🇺🇸 English</option>
           <option value="Spanish">🇪🇸 Spanish</option>
           <option value="French">🇫🇷 French</option>
           <option value="German">🇩🇪 German</option>
@@ -671,7 +689,17 @@ const CameraFeed = () => {
                       />
                       
                       <div className="history-meta">
-                        <span className="history-language">🌐 {item.language}</span>
+                        <span className="history-language">
+                          {item.language === 'English' ? '🇺🇸' : 
+                           item.language === 'Spanish' ? '🇪🇸' :
+                           item.language === 'French' ? '🇫🇷' :
+                           item.language === 'German' ? '🇩🇪' :
+                           item.language === 'Italian' ? '🇮🇹' :
+                           item.language === 'Portuguese' ? '🇵🇹' :
+                           item.language === 'Chinese' ? '🇨🇳' :
+                           item.language === 'Japanese' ? '🇯🇵' :
+                           item.language === 'Korean' ? '🇰🇷' : '🌐'} {item.language}
+                        </span>
                       </div>
                       
                       {item.result && (

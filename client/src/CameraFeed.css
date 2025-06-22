@@ -67,7 +67,7 @@ body {
 }
 
 .options select {
-  padding: 8px 16px;
+  padding: 8px 12px;
   font-size: 14px;
   font-weight: 500;
   border: 1px solid rgba(255,255,255,0.3);
@@ -75,16 +75,20 @@ body {
   background: rgba(255,255,255,0.15);
   backdrop-filter: blur(20px);
   color: white;
-  min-width: 100px;
+  min-width: 120px;
   appearance: none;
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
   text-align-last: center;
+  line-height: 1.2;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  line-height: 1;
+  outline: none;
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .options select:focus {
@@ -96,6 +100,11 @@ body {
 .options select option {
   background: #333;
   color: white;
+  text-align: left;
+  padding: 8px 16px;
+  line-height: 1.4;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 /* Status message */
@@ -608,13 +617,11 @@ body {
 }
 
 .options select:focus-visible {
-  outline: 2px solid #007aff;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .history-btn:focus-visible {
-  outline: 2px solid #007aff;
-  outline-offset: 2px;
+  outline: none;
 }
 
 .clear-history-btn:focus-visible,
@@ -666,6 +673,9 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  height: 36px;
+  min-width: 120px;
+  outline: none;
 }
 
 .history-btn:hover {

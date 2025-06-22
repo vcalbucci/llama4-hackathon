@@ -79,6 +79,12 @@ body {
   appearance: none;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-align: center;
+  text-align-last: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .options select:focus {

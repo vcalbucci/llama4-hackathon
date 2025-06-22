@@ -860,29 +860,34 @@ const CameraFeed = () => {
   return (
     <div className="camera-feed">
       <div className="options">
-        <select
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
-        >
-          <option value="English">🇺🇸 English</option>
-          <option value="Spanish">🇪🇸 Spanish</option>
-          <option value="French">🇫🇷 French</option>
-          <option value="German">🇩🇪 German</option>
-          <option value="Italian">🇮🇹 Italian</option>
-          <option value="Portuguese">🇵🇹 Portuguese</option>
-          <option value="Chinese">🇨🇳 Chinese</option>
-          <option value="Japanese">🇯🇵 Japanese</option>
-          <option value="Korean">🇰🇷 Korean</option>
-        </select>
-
-          <button 
-            onClick={openHistory}
-            className="history-btn"
-          title={labels.viewHistory}
+        <h1 className="app-title">
+          <span role="img" aria-label="globe">🌍</span> WorldView
+        </h1>
+        <div className="option-controls">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
           >
-          {labels.history}
-          {((currentCaptureData ? 1 : 0) + captureHistory.length > 0) && ` ⟲ ${(currentCaptureData ? 1 : 0) + captureHistory.length}`}
-          </button>
+            <option value="English">🇺🇸 English</option>
+            <option value="Spanish">🇪🇸 Spanish</option>
+            <option value="French">🇫🇷 French</option>
+            <option value="German">🇩🇪 German</option>
+            <option value="Italian">🇮🇹 Italian</option>
+            <option value="Portuguese">🇵🇹 Portuguese</option>
+            <option value="Chinese">🇨🇳 Chinese</option>
+            <option value="Japanese">🇯🇵 Japanese</option>
+            <option value="Korean">🇰🇷 Korean</option>
+          </select>
+
+            <button 
+              onClick={openHistory}
+              className="history-btn"
+            title={labels.viewHistory}
+            >
+            {labels.history}
+            {((currentCaptureData ? 1 : 0) + captureHistory.length > 0) && ` ⟲ ${(currentCaptureData ? 1 : 0) + captureHistory.length}`}
+            </button>
+        </div>
       </div>
 
       {status.message && (

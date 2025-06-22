@@ -583,29 +583,34 @@ const CameraFeed = () => {
   return (
     <div className="camera-feed">
       <div className="options">
-        <select value={language} onChange={(e) => setLanguage(e.target.value)}>
-          <option value="English">🇺🇸 English</option>
-          <option value="Spanish">🇪🇸 Spanish</option>
-          <option value="French">🇫🇷 French</option>
-          <option value="German">🇩🇪 German</option>
-          <option value="Italian">🇮🇹 Italian</option>
-          <option value="Portuguese">🇵🇹 Portuguese</option>
-          <option value="Chinese">🇨🇳 Chinese</option>
-          <option value="Japanese">🇯🇵 Japanese</option>
-          <option value="Korean">🇰🇷 Korean</option>
-        </select>
+        <div className="app-logo">
+          <span className="logo-icon">🌍</span>
+          <span className="logo-text">WorldView</span>
+        </div>
+        
+        <div className="controls-right">
+          <select value={language} onChange={(e) => setLanguage(e.target.value)}>
+            <option value="English">🇺🇸 English</option>
+            <option value="Spanish">🇪🇸 Spanish</option>
+            <option value="French">🇫🇷 French</option>
+            <option value="German">🇩🇪 German</option>
+            <option value="Italian">🇮🇹 Italian</option>
+            <option value="Portuguese">🇵🇹 Portuguese</option>
+            <option value="Chinese">🇨🇳 Chinese</option>
+            <option value="Japanese">🇯🇵 Japanese</option>
+            <option value="Korean">🇰🇷 Korean</option>
+          </select>
 
-
-
-        {(currentCaptureData || captureHistory.length > 0) && (
-          <button 
-            onClick={openHistory}
-            className="history-btn"
-            title="View History"
-          >
-            History ⟲ {(currentCaptureData ? 1 : 0) + captureHistory.length}
-          </button>
-        )}
+          {(currentCaptureData || captureHistory.length > 0) && (
+            <button 
+              onClick={openHistory}
+              className="history-btn"
+              title="View History"
+            >
+              History ⟲ {(currentCaptureData ? 1 : 0) + captureHistory.length}
+            </button>
+          )}
+        </div>
       </div>
 
       {status.message && (

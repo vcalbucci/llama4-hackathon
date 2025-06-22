@@ -17,6 +17,8 @@ const CameraFeed = () => {
   const [captureHistory, setCaptureHistory] = useState([]);
   const [currentCaptureData, setCurrentCaptureData] = useState(null);
   const [lightboxData, setLightboxData] = useState(null);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState(null);
+  const [isTtsLoading, setIsTtsLoading] = useState(false);
   const resultContainerRef = useRef(null);
 
   // Get translated labels based on selected language
@@ -145,11 +147,10 @@ const CameraFeed = () => {
     showStatus('Analyzing image...', 'info');
 
     try {
-      const apiUrl = process.env.REACT_APP_API_URL || `http://localhost:${process.env.REACT_APP_PORT || '5051'}`;
-      const response = await fetch(`${apiUrl}/process-image`, {
+      const response = await fetch('http://127.0.0.1:5051/process-image', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json', 
         },
         body: JSON.stringify({
           image: imageDataUrl,
@@ -515,6 +516,27 @@ const CameraFeed = () => {
     }
   };
 
+  // Text-to-speech function
+  const handleTextToSpeech = async (text) => {
+    setIsTtsLoading(true);
+    setTtsAudioUrl(null);
+    try {
+      const response = await fetch('http://127.0.0.1:5051/text-to-speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice: 'alloy' })
+      });
+      if (!response.ok) throw new Error('TTS failed');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      setTtsAudioUrl(url);
+    } catch (err) {
+      alert('Text-to-speech failed.');
+    } finally {
+      setIsTtsLoading(false);
+    }
+  };
+
   useEffect(() => {
     // Check if camera is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -652,7 +674,51 @@ const CameraFeed = () => {
                 {processedResult && (
                   <div className="llama-response">
                     <h3>✨ Image Analysis</h3>
-                    <p>{processedResult}</p>
+                    <p style={{ whiteSpace: 'pre-line' }}>
+                      {processedResult}
+                    </p>
+                    {/* --- TTS Buttons --- */}
+                    <div style={{ marginTop: 12 }}>
+                      {/* Extract translation and context from processedResult */}
+                      {(() => {
+                        // Try to extract translation and context from processedResult
+                        const translationMatch = processedResult.match(/^(Text|Texto|Texte|Testo|文本|テキスト|텍스트):\s*([^\n]*)/m);
+                        const contextMatch = processedResult.match(/^(Description|Descripción|Description|Beschreibung|Descrizione|Descrição|描述|説明|설명):\s*([\s\S]*)/m);
+
+                        const translationText = translationMatch && translationMatch[2] && !translationMatch[2].toLowerCase().includes('no text') ? translationMatch[2].trim() : '';
+                        const contextText = contextMatch && contextMatch[2] ? contextMatch[2].trim() : '';
+
+                        return (
+                          <>
+                            {translationText && (
+                              <button
+                                onClick={() => handleTextToSpeech(translationText)}
+                                disabled={isTtsLoading}
+                                style={{ marginRight: 8 }}
+                              >
+                                {isTtsLoading ? '🔊 Loading...' : '🔊 Listen to Translation'}
+                              </button>
+                            )}
+                            {contextText && (
+                              <button
+                                onClick={() => handleTextToSpeech(contextText)}
+                                disabled={isTtsLoading}
+                              >
+                                {isTtsLoading ? '🔊 Loading...' : '🔊 Listen to Description'}
+                              </button>
+                            )}
+                            {ttsAudioUrl && (
+                              <div style={{ marginTop: 8 }}>
+                                <audio controls autoPlay src={ttsAudioUrl} />
+                                <div style={{ fontSize: '0.8em', color: '#888', marginTop: 4 }}>
+                                  The voice is AI-generated.
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
                   </div>
                 )}
               </div>
@@ -747,4 +813,4 @@ const CameraFeed = () => {
   );
 };
 
-export default CameraFeed; 
+export default CameraFeed;

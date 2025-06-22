@@ -11,6 +11,10 @@ A real-time camera application that captures images and analyzes them using the 
 - Integration with Llama API for image analysis
 - Modern, responsive UI
 
+## Demo
+
+[Watch a demo of the application on YouTube](https://www.youtube.com/watch?v=Ozh4j8MfIec)
+
 ## Prerequisites
 
 Before you begin, ensure you have the following installed:

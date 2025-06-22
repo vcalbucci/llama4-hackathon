@@ -11,11 +11,12 @@ const CameraFeed = () => {
   const [result, setResult] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [language, setLanguage] = useState('English');
-  const [context, setContext] = useState('describe');
   const [processingError, setProcessingError] = useState(null);
   const [processedResult, setProcessedResult] = useState(null);
   const [isResultVisible, setIsResultVisible] = useState(false);
   const [captureHistory, setCaptureHistory] = useState([]);
+  const [currentCaptureData, setCurrentCaptureData] = useState(null);
+  const [lightboxData, setLightboxData] = useState(null);
   const resultContainerRef = useRef(null);
 
   const showStatus = (message, type = 'info') => {
@@ -38,8 +39,8 @@ const CameraFeed = () => {
       const constraints = {
         video: {
           facingMode: facingMode,
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 }
+          width: { ideal: 430 },
+          height: { ideal: 932 }
         },
         audio: false
       };
@@ -55,9 +56,16 @@ const CameraFeed = () => {
       
       showStatus('Camera ready!', 'success');
       
-      // Hide status after 2 seconds
+      // Hide status after 2 seconds with fade-out animation
       setTimeout(() => {
-        setStatus({ message: '', type: 'info' });
+        const statusElement = document.querySelector('.status-message');
+        if (statusElement) {
+          statusElement.classList.add('fade-out');
+          // Clear the status after animation completes
+          setTimeout(() => {
+            setStatus({ message: '', type: 'info' });
+          }, 300);
+        }
       }, 2000);
       
     } catch (error) {
@@ -88,6 +96,11 @@ const CameraFeed = () => {
   const captureImage = () => {
     if (!videoRef.current || !canvasRef.current) return;
 
+    // Add previous capture to history before taking new one
+    if (currentCaptureData) {
+      setCaptureHistory(prev => [currentCaptureData, ...prev]);
+    }
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -109,6 +122,7 @@ const CameraFeed = () => {
 
   const processImage = async (imageDataUrl) => {
     setIsProcessing(true);
+    setIsResultVisible(true);
     setResult(null);
     setProcessedResult(null);
     setProcessingError(null);
@@ -122,62 +136,105 @@ const CameraFeed = () => {
         },
         body: JSON.stringify({
           image: imageDataUrl,
-          language: language,
-          context: context
+          language: language
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Extract just the text content from the Llama response
-        let textContent = '';
-        if (data.result && typeof data.result === 'object') {
-          if (data.result.completion_message && 
-              data.result.completion_message.content && 
-              data.result.completion_message.content.text) {
-            textContent = data.result.completion_message.content.text;
-          } else if (data.result.text) {
-            textContent = data.result.text;
+        // Handle the JSON response format with translation and context
+        let formattedResult = '';
+        
+        // Check if the response is directly in data or in data.result
+        let responseData = data.result || data;
+        
+        // Handle the nested structure with completion_message
+        if (responseData && responseData.completion_message && responseData.completion_message.content) {
+          const textContent = responseData.completion_message.content.text;
+          
+          try {
+            // Remove markdown code block wrapper and parse JSON
+            const jsonString = textContent.replace(/```json\n?|\n?```/g, '').trim();
+            const parsedData = JSON.parse(jsonString);
+            
+            const translation = parsedData.translation || '';
+            const description = parsedData.context || '';
+            
+            // Format the result with proper labels
+            if (translation && translation.trim()) {
+              formattedResult += `Text: ${translation}`;
+            } else {
+              // Show friendly message when no text is detected
+              formattedResult += `Text: No text detected in image`;
+            }
+            
+            if (description && description.trim()) {
+              if (formattedResult) formattedResult += '\n\n';
+              formattedResult += `Description: ${description}`;
+            }
+          } catch (parseError) {
+            formattedResult = textContent; // Fallback to raw text
           }
-        } else if (typeof data.result === 'string') {
-          textContent = data.result;
+        } else if (responseData && typeof responseData === 'object') {
+          // Fallback for direct object structure
+          const translation = responseData.translation || '';
+          const description = responseData.context || '';
+          
+          if (translation && translation.trim()) {
+            formattedResult += `Text: ${translation}`;
+          } else {
+            formattedResult += `Text: No text detected in image`;
+          }
+          
+          if (description && description.trim()) {
+            if (formattedResult) formattedResult += '\n\n';
+            formattedResult += `Description: ${description}`;
+          }
+        } else if (typeof responseData === 'string') {
+          formattedResult = responseData;
         }
 
-        const finalResult = textContent || 'No text content found in response';
+        const finalResult = formattedResult || 'No content found in response';
         setProcessedResult(finalResult);
         setProcessingError(null);
         
-        // Add to history
-        const historyItem = {
+        // Store as current capture data (don't add to history yet)
+        setCurrentCaptureData({
           id: Date.now(),
           image: imageDataUrl,
           result: finalResult,
           language: language,
-          context: context,
           timestamp: new Date().toLocaleString()
-        };
-        
-        setCaptureHistory(prev => [historyItem, ...prev]);
+        });
         
         showStatus('Analysis complete!', 'success');
+        
+        // Auto-hide success status after 3 seconds with fade-out animation
+        setTimeout(() => {
+          const statusElement = document.querySelector('.status-message');
+          if (statusElement) {
+            statusElement.classList.add('fade-out');
+            // Clear the status after animation completes
+            setTimeout(() => {
+              setStatus({ message: '', type: 'info' });
+            }, 300);
+          }
+        }, 3000);
       } else {
         const errorMsg = data.error || 'Failed to process image';
         setProcessingError(errorMsg);
         setProcessedResult(null);
         
-        // Add failed capture to history
-        const historyItem = {
+        // Store failed capture as current data
+        setCurrentCaptureData({
           id: Date.now(),
           image: imageDataUrl,
           result: null,
           error: errorMsg,
           language: language,
-          context: context,
           timestamp: new Date().toLocaleString()
-        };
-        
-        setCaptureHistory(prev => [historyItem, ...prev]);
+        });
         
         showError(errorMsg);
       }
@@ -187,18 +244,15 @@ const CameraFeed = () => {
       setProcessingError(errorMsg);
       setProcessedResult(null);
       
-      // Add failed capture to history
-      const historyItem = {
+      // Store failed capture as current data
+      setCurrentCaptureData({
         id: Date.now(),
         image: imageDataUrl,
         result: null,
         error: errorMsg,
         language: language,
-        context: context,
         timestamp: new Date().toLocaleString()
-      };
-      
-      setCaptureHistory(prev => [historyItem, ...prev]);
+      });
       
       showError(errorMsg);
     } finally {
@@ -400,6 +454,7 @@ const CameraFeed = () => {
 
   const clearHistory = () => {
     setCaptureHistory([]);
+    setCurrentCaptureData(null);
     // Add smooth closing animation
     const container = resultContainerRef.current;
     if (container) {
@@ -417,6 +472,28 @@ const CameraFeed = () => {
 
   const deleteHistoryItem = (id) => {
     setCaptureHistory(prev => prev.filter(item => item.id !== id));
+  };
+
+  const openHistory = () => {
+    if (currentCaptureData || captureHistory.length > 0) {
+      setIsResultVisible(true);
+    }
+  };
+
+  const closeResultContainer = () => {
+    // Add smooth closing animation
+    const container = resultContainerRef.current;
+    if (container) {
+      container.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      container.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        setIsResultVisible(false);
+        container.style.transform = '';
+        container.style.transition = '';
+      }, 300);
+    } else {
+      setIsResultVisible(false);
+    }
   };
 
   useEffect(() => {
@@ -438,11 +515,29 @@ const CameraFeed = () => {
   }, []); // Empty dependency array to run only on mount
 
   useEffect(() => {
-    // Show result container when there's a result or history
+    // Show result container when there's a current result or history
     if (processedResult || processingError || captureHistory.length > 0) {
       setIsResultVisible(true);
     }
   }, [processedResult, processingError, captureHistory]);
+
+  // Handle touch events with proper passive/non-passive settings
+  useEffect(() => {
+    const container = resultContainerRef.current;
+    if (!container) return;
+
+    // Add touch event listeners with non-passive option
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    // Cleanup function
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd, isResultVisible]);
 
   return (
     <div className="camera-feed">
@@ -459,10 +554,17 @@ const CameraFeed = () => {
           <option value="Korean">🇰🇷 Korean</option>
         </select>
 
-        <select value={context} onChange={(e) => setContext(e.target.value)}>
-          <option value="describe">👁️ Describe</option>
-          <option value="translate">🔤 Translate</option>
-        </select>
+
+
+        {(currentCaptureData || captureHistory.length > 0) && (
+          <button 
+            onClick={openHistory}
+            className="history-btn"
+            title="View History"
+          >
+            History ⟲ {(currentCaptureData ? 1 : 0) + captureHistory.length}
+          </button>
+        )}
       </div>
 
       {status.message && (
@@ -493,91 +595,123 @@ const CameraFeed = () => {
       </div>
 
       {(processedResult || processingError || isProcessing || captureHistory.length > 0) && isResultVisible && (
-        <div 
-          ref={resultContainerRef}
-          className={`result-container ${!isResultVisible ? 'hidden' : ''}`}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleMouseDown}
-        >
-          {/* Current/Latest Capture */}
-          {(capturedImage || isProcessing || processedResult || processingError) && (
-            <div className="current-capture">
-              {capturedImage && (
-                <img src={capturedImage} alt="Latest Capture" />
-              )}
-              
-              {isProcessing && (
-                <div className="processing-indicator">
-                  Analyzing your image...
-                </div>
-              )}
-              
-              {processingError && (
-                <div className="error-message">
-                  ❌ {processingError}
-                </div>
-              )}
-              
-              {processedResult && (
-                <div className="llama-response">
-                  <h3>✨ Analysis Result</h3>
-                  <p>{processedResult}</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* History Section */}
-          {captureHistory.length > 0 && (
-            <div className="history-section">
-              <div className="history-header">
-                <h3>📸 Previous Captures</h3>
-                <button onClick={clearHistory} className="clear-history-btn">
-                  🗑️ Clear All
-                </button>
-              </div>
-              
-              <div className="history-list">
-                {captureHistory.map((item) => (
-                  <div key={item.id} className="history-item">
-                    <div className="history-item-header">
-                      <span className="history-timestamp">{item.timestamp}</span>
-                      <button 
-                        onClick={() => deleteHistoryItem(item.id)}
-                        className="delete-item-btn"
-                        title="Delete this capture"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    
-                    <img src={item.image} alt={`Capture from ${item.timestamp}`} />
-                    
-                    <div className="history-meta">
-                      <span className="history-language">🌐 {item.language}</span>
-                      <span className="history-context">
-                        {item.context === 'describe' ? '👁️ Describe' : '🔤 Translate'}
-                      </span>
-                    </div>
-                    
-                    {item.result && (
-                      <div className="history-result">
-                        <p>{item.result}</p>
-                      </div>
-                    )}
-                    
-                    {item.error && (
-                      <div className="history-error">
-                        ❌ {item.error}
-                      </div>
-                    )}
+        <>
+          {/* Backdrop overlay */}
+          <div 
+            className="backdrop-overlay"
+            onClick={closeResultContainer}
+          />
+          
+          <div 
+            ref={resultContainerRef}
+            className={`result-container ${!isResultVisible ? 'hidden' : ''}`}
+            onMouseDown={handleMouseDown}
+          >
+            {/* Current/Latest Capture */}
+            {(capturedImage || isProcessing || processedResult || processingError) && (
+              <div className="current-capture">
+                {capturedImage && (
+                  <img
+                    src={capturedImage}
+                    alt="Latest Capture"
+                    onClick={() => setLightboxData(currentCaptureData)}
+                  />
+                )}
+                
+                {isProcessing && (
+                  <div className="processing-indicator">
+                    Analyzing your image...
                   </div>
-                ))}
+                )}
+                
+                {processingError && (
+                  <div className="error-message">
+                    ❌ {processingError}
+                  </div>
+                )}
+                
+                {processedResult && (
+                  <div className="llama-response">
+                    <h3>✨ Image Analysis</h3>
+                    <p>{processedResult}</p>
+                  </div>
+                )}
               </div>
+            )}
+
+            {/* History Section */}
+            {captureHistory.length > 0 && (
+              <div className="history-section">
+                <div className="history-header">
+                  <h3>⟲ Previous Captures</h3>
+                  <button onClick={clearHistory} className="clear-history-btn">
+                    🗑️ Clear All
+                  </button>
+                </div>
+                
+                <div className="history-list">
+                  {captureHistory.map((item) => (
+                    <div key={item.id} className="history-item">
+                      <div className="history-item-header">
+                        <span className="history-timestamp">{item.timestamp}</span>
+                        <button 
+                          onClick={() => deleteHistoryItem(item.id)}
+                          className="delete-item-btn"
+                          title="Delete this capture"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      
+                      <img
+                        src={item.image}
+                        alt={`Capture from ${item.timestamp}`}
+                        onClick={() => setLightboxData(item)}
+                      />
+                      
+                      <div className="history-meta">
+                        <span className="history-language">🌐 {item.language}</span>
+                      </div>
+                      
+                      {item.result && (
+                        <div className="history-result">
+                          <p>{item.result}</p>
+                        </div>
+                      )}
+                      
+                      {item.error && (
+                        <div className="history-error">
+                          ❌ {item.error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+      {lightboxData && (
+        <div className="lightbox-overlay" onClick={() => setLightboxData(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <div className="lightbox-header">
+              <button onClick={() => setLightboxData(null)} className="back-button">
+                Back
+              </button>
             </div>
-          )}
+            <img src={lightboxData.image} alt="Enlarged capture" className="lightbox-image" />
+            {lightboxData.result && (
+              <div className="lightbox-details">
+                <p>{lightboxData.result}</p>
+              </div>
+            )}
+            {lightboxData.error && (
+              <div className="lightbox-details error-message">
+                ❌ {lightboxData.error}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

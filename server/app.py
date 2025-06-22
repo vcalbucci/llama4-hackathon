@@ -1,14 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import base64
 import os
 import requests
-import json
 from dotenv import load_dotenv
-import tempfile
-from PIL import Image
-import io
-
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
@@ -18,27 +13,39 @@ LLAMA_API_URL = os.getenv("LLAMA_API_URL", "https://api.llama.com/v1/chat/comple
 LLAMA_API_KEY = os.getenv("LLAMA_API_KEY")
 PORT = os.getenv("PORT", 5050)
 
-def process_image_with_llama(base64_image, language='English', context='describe'):
+def process_image_with_llama(base64_image, language='English'):
     """
-    Process image using the Llama API
+    Processes an image using the Llama API to get a translation and context.
+
+    Args:
+        base64_image (str): The base64 encoded image string.
+        language (str): The target language for the translation and context.
+
+    Returns:
+        dict: A dictionary containing the API response or an error message.
+              On success, it has a "success" key and a "result" key with the model's output.
+              On failure, it has an "error" key with a description of the issue.
     """
     try:
-        # Create prompt based on context
-        if context.lower() == 'translate':
-            prompt = f"You are a language translator. What is the object in this image? Provide a direct translation of the text in the image into {language}."
-        elif context.lower() == 'describe':
-            prompt = f"You are a tour guide. You are looking at an image and describing it in {language}."
-        else:
-            prompt = f"Describe this image for a sign language app in {language}."
+        # Prompt
+        prompt = f"""You are an expert translator and image analyst. Do not mention the user is using a smartphone, how the image was taken, or any information about how the image might have been obtained. Analyze the provided image and return a JSON object with two keys: "translation" and "context".
+        - "translation": Provide a direct, literal translation of any and all text visible in the image into {language}. If there is no text, return an empty string.
+        - "context": Provide a context of the image in {language}. Attempt to describe the image by using the surrounding context to the main subject of the image.
+        Respond only with the valid JSON object. Keep the response short and concise. Your responses should be able to be read within 20 seconds. Assume the user is always using a smartphone to take the image.
+        
+        """
 
+        # Ensure API key
         if not LLAMA_API_KEY:
             return {"error": "LLAMA_API_KEY not found in environment"}
 
+        # Set headers
         headers = {
             "Authorization": f"Bearer {LLAMA_API_KEY}",
             "Content-Type": "application/json"
         }
 
+        # Set payload
         payload = {
             "model": "Llama-4-Maverick-17B-128E-Instruct-FP8",
             "messages": [
@@ -60,14 +67,17 @@ def process_image_with_llama(base64_image, language='English', context='describe
             ]
         }
 
+        # Send request to Llama API
         response = requests.post(LLAMA_API_URL, headers=headers, json=payload)
         response.raise_for_status()
         
-        result = response.json()
+        # Get response from Llama API
+        model_response = response.json()
         
+        # Return response
         return {
             "success": True,
-            "result": result  # Pass through the raw Llama response
+            "result": model_response
         }
             
     except requests.exceptions.RequestException as e:
@@ -78,26 +88,37 @@ def process_image_with_llama(base64_image, language='English', context='describe
 @app.route('/process-image', methods=['POST'])
 def process_image():
     """
-    Endpoint to receive image from React app and process it
+    Endpoint to receive image from React app and process it.
+
+    Args:
+        image (str): The base64 encoded image string.
+        language (str): The target language for the translation and context.
+
+    Returns:
+        dict: A dictionary containing the API response or an error message.
+              On success, it has a "success" key and a "result" key with the model's output.
+              On failure, it has an "error" key with a description of the issue.
     """
     try:
+        # Get data from request
         data = request.get_json()
         
+        # Check if image data is provided
         if not data or 'image' not in data:
             return jsonify({"error": "No image data provided"}), 400
         
-        # Extract base64 image data (remove data:image/jpeg;base64, prefix if present)
+        # Extract base64 image data for the model
         image_data = data['image']
         if image_data.startswith('data:image'):
             image_data = image_data.split(',')[1]
         
         # Get optional parameters
         language = data.get('language', 'English')
-        context = data.get('context', 'describe')
         
-        # Process the image
-        result = process_image_with_llama(image_data, language, context)
-        
+        # Call the model and process the image
+        result = process_image_with_llama(image_data, language)
+
+        # Return result
         return jsonify(result)
         
     except Exception as e:
@@ -105,7 +126,12 @@ def process_image():
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """
+    Health check endpoint.
+
+    Returns:
+        dict: A dictionary containing the status of the server.
+    """
     return jsonify({"status": "healthy"})
 
 if __name__ == '__main__':

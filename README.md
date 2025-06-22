@@ -1,4 +1,4 @@
-# Llama Camera App
+# 🌍 WorldView
 
 A real-time camera application that captures images and analyzes them using the Llama API. The app includes a React frontend for camera interaction and a Flask backend for image processing.
 
@@ -23,7 +23,7 @@ Before you begin, ensure you have the following installed:
 
 1. Clone the repository:
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/vcalbucci/llama.git
    cd llama
    ```
 

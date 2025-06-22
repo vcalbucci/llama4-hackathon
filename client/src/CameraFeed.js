@@ -11,12 +11,12 @@ const CameraFeed = () => {
   const [result, setResult] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
   const [language, setLanguage] = useState('English');
-  const [context, setContext] = useState('describe');
   const [processingError, setProcessingError] = useState(null);
   const [processedResult, setProcessedResult] = useState(null);
   const [isResultVisible, setIsResultVisible] = useState(false);
   const [captureHistory, setCaptureHistory] = useState([]);
   const [currentCaptureData, setCurrentCaptureData] = useState(null);
+  const [lightboxData, setLightboxData] = useState(null);
   const resultContainerRef = useRef(null);
 
   const showStatus = (message, type = 'info') => {
@@ -39,8 +39,8 @@ const CameraFeed = () => {
       const constraints = {
         video: {
           facingMode: facingMode,
-          width: { ideal: 1920, max: 1920 },
-          height: { ideal: 1080, max: 1080 }
+          width: { ideal: 430 },
+          height: { ideal: 932 }
         },
         audio: false
       };
@@ -122,43 +122,81 @@ const CameraFeed = () => {
 
   const processImage = async (imageDataUrl) => {
     setIsProcessing(true);
+    setIsResultVisible(true);
     setResult(null);
     setProcessedResult(null);
     setProcessingError(null);
     showStatus('Analyzing image...', 'info');
 
     try {
-      const port = process.env.REACT_APP_PORT || '5050';
-      const response = await fetch(`http://localhost:${port}/process-image`, {
+      const apiUrl = process.env.REACT_APP_API_URL || `http://localhost:${process.env.REACT_APP_PORT || '5051'}`;
+      const response = await fetch(`${apiUrl}/process-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           image: imageDataUrl,
-          language: language,
-          context: context
+          language: language
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        // Extract just the text content from the Llama response
-        let textContent = '';
-        if (data.result && typeof data.result === 'object') {
-          if (data.result.completion_message && 
-              data.result.completion_message.content && 
-              data.result.completion_message.content.text) {
-            textContent = data.result.completion_message.content.text;
-          } else if (data.result.text) {
-            textContent = data.result.text;
+        // Handle the JSON response format with translation and context
+        let formattedResult = '';
+        
+        // Check if the response is directly in data or in data.result
+        let responseData = data.result || data;
+        
+        // Handle the nested structure with completion_message
+        if (responseData && responseData.completion_message && responseData.completion_message.content) {
+          const textContent = responseData.completion_message.content.text;
+          
+          try {
+            // Remove markdown code block wrapper and parse JSON
+            const jsonString = textContent.replace(/```json\n?|\n?```/g, '').trim();
+            const parsedData = JSON.parse(jsonString);
+            
+            const translation = parsedData.translation || '';
+            const description = parsedData.context || '';
+            
+            // Format the result with proper labels
+            if (translation && translation.trim()) {
+              formattedResult += `Text: ${translation}`;
+            } else {
+              // Show friendly message when no text is detected
+              formattedResult += `Text: No text detected in image`;
+            }
+            
+            if (description && description.trim()) {
+              if (formattedResult) formattedResult += '\n\n';
+              formattedResult += `Description: ${description}`;
+            }
+          } catch (parseError) {
+            formattedResult = textContent; // Fallback to raw text
           }
-        } else if (typeof data.result === 'string') {
-          textContent = data.result;
+        } else if (responseData && typeof responseData === 'object') {
+          // Fallback for direct object structure
+          const translation = responseData.translation || '';
+          const description = responseData.context || '';
+          
+          if (translation && translation.trim()) {
+            formattedResult += `Text: ${translation}`;
+          } else {
+            formattedResult += `Text: No text detected in image`;
+          }
+          
+          if (description && description.trim()) {
+            if (formattedResult) formattedResult += '\n\n';
+            formattedResult += `Description: ${description}`;
+          }
+        } else if (typeof responseData === 'string') {
+          formattedResult = responseData;
         }
 
-        const finalResult = textContent || 'No text content found in response';
+        const finalResult = formattedResult || 'No content found in response';
         setProcessedResult(finalResult);
         setProcessingError(null);
         
@@ -168,7 +206,6 @@ const CameraFeed = () => {
           image: imageDataUrl,
           result: finalResult,
           language: language,
-          context: context,
           timestamp: new Date().toLocaleString()
         });
         
@@ -197,7 +234,6 @@ const CameraFeed = () => {
           result: null,
           error: errorMsg,
           language: language,
-          context: context,
           timestamp: new Date().toLocaleString()
         });
         
@@ -216,7 +252,6 @@ const CameraFeed = () => {
         result: null,
         error: errorMsg,
         language: language,
-        context: context,
         timestamp: new Date().toLocaleString()
       });
       
@@ -462,8 +497,6 @@ const CameraFeed = () => {
     }
   };
 
-
-
   useEffect(() => {
     // Check if camera is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -489,6 +522,24 @@ const CameraFeed = () => {
     }
   }, [processedResult, processingError, captureHistory]);
 
+  // Handle touch events with proper passive/non-passive settings
+  useEffect(() => {
+    const container = resultContainerRef.current;
+    if (!container) return;
+
+    // Add touch event listeners with non-passive option
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    // Cleanup function
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd, isResultVisible]);
+
   return (
     <div className="camera-feed">
       <div className="options">
@@ -504,10 +555,7 @@ const CameraFeed = () => {
           <option value="Korean">🇰🇷 Korean</option>
         </select>
 
-        <select value={context} onChange={(e) => setContext(e.target.value)}>
-          <option value="describe">👁️ Describe</option>
-          <option value="translate">🔤 Translate</option>
-        </select>
+
 
         {(currentCaptureData || captureHistory.length > 0) && (
           <button 
@@ -515,7 +563,7 @@ const CameraFeed = () => {
             className="history-btn"
             title="View History"
           >
-            History ⟲ {captureHistory.length}
+            History ⟲ {(currentCaptureData ? 1 : 0) + captureHistory.length}
           </button>
         )}
       </div>
@@ -558,16 +606,17 @@ const CameraFeed = () => {
           <div 
             ref={resultContainerRef}
             className={`result-container ${!isResultVisible ? 'hidden' : ''}`}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
             onMouseDown={handleMouseDown}
           >
             {/* Current/Latest Capture */}
             {(capturedImage || isProcessing || processedResult || processingError) && (
               <div className="current-capture">
                 {capturedImage && (
-                  <img src={capturedImage} alt="Latest Capture" />
+                  <img
+                    src={capturedImage}
+                    alt="Latest Capture"
+                    onClick={() => setLightboxData(currentCaptureData)}
+                  />
                 )}
                 
                 {isProcessing && (
@@ -584,7 +633,7 @@ const CameraFeed = () => {
                 
                 {processedResult && (
                   <div className="llama-response">
-                    <h3>✨ Analysis Result</h3>
+                    <h3>✨ Image Analysis</h3>
                     <p>{processedResult}</p>
                   </div>
                 )}
@@ -615,13 +664,14 @@ const CameraFeed = () => {
                         </button>
                       </div>
                       
-                      <img src={item.image} alt={`Capture from ${item.timestamp}`} />
+                      <img
+                        src={item.image}
+                        alt={`Capture from ${item.timestamp}`}
+                        onClick={() => setLightboxData(item)}
+                      />
                       
                       <div className="history-meta">
                         <span className="history-language">🌐 {item.language}</span>
-                        <span className="history-context">
-                          {item.context === 'describe' ? '👁️ Describe' : '🔤 Translate'}
-                        </span>
                       </div>
                       
                       {item.result && (
@@ -642,6 +692,28 @@ const CameraFeed = () => {
             )}
           </div>
         </>
+      )}
+      {lightboxData && (
+        <div className="lightbox-overlay" onClick={() => setLightboxData(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <div className="lightbox-header">
+              <button onClick={() => setLightboxData(null)} className="back-button">
+                Back
+              </button>
+            </div>
+            <img src={lightboxData.image} alt="Enlarged capture" className="lightbox-image" />
+            {lightboxData.result && (
+              <div className="lightbox-details">
+                <p>{lightboxData.result}</p>
+              </div>
+            )}
+            {lightboxData.error && (
+              <div className="lightbox-details error-message">
+                ❌ {lightboxData.error}
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
